@@ -40,7 +40,7 @@ def scrape_data(url):
         soup = BeautifulSoup(response.content, 'html.parser')
         # Extract relevant data from the soup object
         paragraphs = soup.find_all('p')
-        text_content = ' '.join([para.get_text() for para in paragraphs])
+        text_content = ' '.join([para.get_text() for para in paragraphs if para.get_text().strip()])
         return text_content
     except requests.exceptions.RequestException as e:
         st.error(f"Error scraping data: {e}")
@@ -53,19 +53,19 @@ def generate_actionable_risk_mitigation(text, model_name, custom_prompt=None):
         
         # Generate actionable items
         actionable_prompt = custom_prompt or f"""
-        Analyze the following text and provide a clear list of actionable items Refering the Paragraph based on the RBI circular:
+        Analyze the following text and provide a clear list of actionable items referring to the Paragraph based on the RBI circular:
         {text}
         """
         actionable_response = model.generate_content(actionable_prompt)
-        actionable = actionable_response.text
+        actionable = actionable_response.text.strip()
 
         # Generate risk mitigations
         risk_prompt = custom_prompt or f"""
-        Analyze the following text and provide a clear list of risk mitigations Refering the Paragraph based on the RBI circular:
+        Analyze the following text and provide a clear list of risk mitigations referring to the Paragraph based on the RBI circular:
         {text}
         """
         risk_response = model.generate_content(risk_prompt)
-        risk_mitigation = risk_response.text
+        risk_mitigation = risk_response.text.strip()
 
         return actionable, risk_mitigation
     except Exception as e:
@@ -81,13 +81,13 @@ def export_to_excel(actionable, risk_mitigation):
     # Add actionable items
     ws.append(["Actionable Items"])
     for item in actionable.split('\n'):
-        ws.append([item])
+        ws.append([item.strip()])
     
     # Add risk mitigations
     ws.append([])
     ws.append(["Risk Mitigations"])
     for item in risk_mitigation.split('\n'):
-        ws.append([item])
+        ws.append([item.strip()])
     
     # Save to a BytesIO object
     excel_file = io.BytesIO()
@@ -105,21 +105,23 @@ def export_to_pdf(actionable, risk_mitigation):
     c.drawString(30, height - 30, "Actionable Items")
     y = height - 50
     for item in actionable.split('\n'):
-        c.drawString(30, y, item)
-        y -= 15
-        if y < 50:  # Add new page if content exceeds page height
-            c.showPage()
-            y = height - 30
+        if item.strip():  # Only add non-empty lines
+            c.drawString(30, y, item.strip())
+            y -= 15
+            if y < 50:  # Add new page if content exceeds page height
+                c.showPage()
+                y = height - 30
     
     # Add risk mitigations
     c.drawString(30, y, "Risk Mitigations")
     y -= 20
     for item in risk_mitigation.split('\n'):
-        c.drawString(30, y, item)
-        y -= 15
-        if y < 50:  # Add new page if content exceeds page height
-            c.showPage()
-            y = height - 30
+        if item.strip():  # Only add non-empty lines
+            c.drawString(30, y, item.strip())
+            y -= 15
+            if y < 50:  # Add new page if content exceeds page height
+                c.showPage()
+                y = height - 30
     
     c.save()
     pdf_file.seek(0)
@@ -135,7 +137,11 @@ url = st.text_input("Enter the URL to scrape:")
 custom_prompt = st.text_area("Enter a custom prompt for analysis (optional):")
 
 # User input for model selection
-model_options = ["gemini-2.0-flash","gemini-2.0-flash-lite","gemini-2.0-pro-exp-02-05","gemini-2.0-flash-thinking-exp-01-21","gemini-2.0-flash-exp","learnlm-1.5-pro-experimental","gemini-1.5-pro","gemini-1.5-flash","gemini-1.5-flash-8b"]  # Add more models as needed
+model_options = [
+    "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.0-pro-exp-02-05",
+    "gemini-2.0-flash-thinking-exp-01-21", "gemini-2.0-flash-exp", "learnlm-1.5-pro-experimental",
+    "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"
+]  # Add more models as needed
 selected_model = st.selectbox("Select a Gemini model:", model_options)
 
 if url:
