@@ -2,7 +2,7 @@ requests
 beautifulsoup4
 openpyxl
 reportlab
-google-generativeai
+google.generativeai
 streamlit
 python-dotenv
 pytesseract
