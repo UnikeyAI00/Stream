@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import os
-import google.generativeai as genai
+import google-genai as genai
 from dotenv import load_dotenv
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter
