@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -8,8 +7,8 @@ from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import io
-import pytesseract
-from PIL import Image
+import subprocess
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +21,16 @@ if gemini_api_key is None:
 
 # Configure Gemini API
 genai.configure(api_key=gemini_api_key)
+
+# Ensure BeautifulSoup is installed
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    install('beautifulsoup4')
+    from bs4 import BeautifulSoup
 
 # Function to scrape data from the provided URL
 def scrape_data(url):
@@ -116,78 +125,55 @@ def export_to_pdf(actionable, risk_mitigation):
     pdf_file.seek(0)
     return pdf_file
 
-# Function to perform OCR on an uploaded image
-def perform_ocr(image):
-    text = pytesseract.image_to_string(image)
-    return text
-
 # Streamlit app
 st.title("Web Scraping and Analysis with Google Gemini")
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-option = st.sidebar.selectbox("Select an option:", ["Web Scraping", "OCR"])
+# User input for URL
+url = st.text_input("Enter the URL to scrape:")
 
-if option == "Web Scraping":
-    # User input for URL
-    url = st.text_input("Enter the URL to scrape:")
+# User input for custom prompt
+custom_prompt = st.text_area("Enter a custom prompt for analysis (optional):")
 
-    # User input for custom prompt
-    custom_prompt = st.text_area("Enter a custom prompt for analysis (optional):")
+# User input for model selection
+model_options = ["gemini-2.0-flash","gemini-2.0-flash-lite","gemini-2.0-pro-exp-02-05","gemini-2.0-flash-thinking-exp-01-21","gemini-2.0-flash-exp","learnlm-1.5-pro-experimental","gemini-1.5-pro","gemini-1.5-flash","gemini-1.5-flash-8b"]  # Add more models as needed
+selected_model = st.selectbox("Select a Gemini model:", model_options)
 
-    # User input for model selection
-    model_options = ["gemini-2.0-flash","gemini-2.0-flash-lite","gemini-2.0-pro-exp-02-05","gemini-2.0-flash-thinking-exp-01-21","gemini-2.0-flash-exp","learnlm-1.5-pro-experimental","gemini-1.5-pro","gemini-1.5-flash","gemini-1.5-flash-8b"]  # Add more models as needed
-    selected_model = st.selectbox("Select a Gemini model:", model_options)
+if url:
+    # Scrape data from the provided URL
+    text_content = scrape_data(url)
+    if text_content:
+        # Generate actionable items and risk mitigations
+        actionable, risk_mitigation = generate_actionable_risk_mitigation(text_content, selected_model, custom_prompt)
+        if actionable and risk_mitigation:
+            # Display the results
+            st.write("### Actionable Items")
+            st.write(actionable)
+            st.write("### Risk Mitigations")
+            st.write(risk_mitigation)
 
-    if url:
-        # Scrape data from the provided URL
-        text_content = scrape_data(url)
-        if text_content:
-            # Generate actionable items and risk mitigations
-            actionable, risk_mitigation = generate_actionable_risk_mitigation(text_content, selected_model, custom_prompt)
-            if actionable and risk_mitigation:
-                # Display the results
-                st.write("### Actionable Items")
-                st.write(actionable)
-                st.write("### Risk Mitigations")
-                st.write(risk_mitigation)
-
-                # Export options
-                st.write("### Export Results")
-                export_format = st.selectbox("Select export format:", ["Excel", "PDF"])
-                
-                if export_format == "Excel":
-                    excel_file = export_to_excel(actionable, risk_mitigation)
-                    st.download_button(
-                        label="Download Excel",
-                        data=excel_file,
-                        file_name="analysis_results.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                elif export_format == "PDF":
-                    pdf_file = export_to_pdf(actionable, risk_mitigation)
-                    st.download_button(
-                        label="Download PDF",
-                        data=pdf_file,
-                        file_name="analysis_results.pdf",
-                        mime="application/pdf"
-                    )
-            else:
-                st.warning("No actionable items or risk mitigations found.")
+            # Export options
+            st.write("### Export Results")
+            export_format = st.selectbox("Select export format:", ["Excel", "PDF"])
+            
+            if export_format == "Excel":
+                excel_file = export_to_excel(actionable, risk_mitigation)
+                st.download_button(
+                    label="Download Excel",
+                    data=excel_file,
+                    file_name="analysis_results.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+            elif export_format == "PDF":
+                pdf_file = export_to_pdf(actionable, risk_mitigation)
+                st.download_button(
+                    label="Download PDF",
+                    data=pdf_file,
+                    file_name="analysis_results.pdf",
+                    mime="application/pdf"
+                )
         else:
-            st.warning("No data retrieved from the provided URL.")
+            st.warning("No actionable items or risk mitigations found.")
     else:
-        st.info("Please enter a URL to begin.")
-
-elif option == "OCR":
-    # User input for image upload
-    uploaded_file = st.file_uploader("Upload an image for OCR:", type=["jpg", "jpeg", "png"])
-    
-    if uploaded_file is not None:
-        # Perform OCR on the uploaded image
-        image = Image.open(uploaded_file)
-        extracted_text = perform_ocr(image)
-        
-        # Display the extracted text
-        st.write("### Extracted Text")
-        st.write(extracted_text)
+        st.warning("No data retrieved from the provided URL.")
+else:
+    st.info("Please enter a URL to begin.")
