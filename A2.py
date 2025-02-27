@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -8,6 +7,8 @@ from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import io
+import subprocess
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +21,16 @@ if gemini_api_key is None:
 
 # Configure Gemini API
 genai.configure(api_key=gemini_api_key)
+
+# Ensure BeautifulSoup is installed
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    install('beautifulsoup4')
+    from bs4 import BeautifulSoup
 
 # Function to scrape data from the provided URL
 def scrape_data(url):
