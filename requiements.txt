@@ -3,8 +3,7 @@ requests
 beautifulsoup4
 openpyxl
 reportlab
-google
-google-genai
+google.generativeai
 python-dotenv
 pytesseract
-pillow
+Pillow
